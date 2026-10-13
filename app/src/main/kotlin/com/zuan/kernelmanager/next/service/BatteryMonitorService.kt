@@ -7,6 +7,7 @@
  */
 package com.zuan.kernelmanager.next.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -29,6 +30,7 @@ import com.topjohnwu.superuser.Shell
 import com.zuan.kernelmanager.next.ui.MainActivity
 import com.zuan.kernelmanager.next.R
 import com.zuan.kernelmanager.next.library.device.battery.BatteryUtils
+import com.zuan.kernelmanager.next.utils.RootPersistenceUtils
 import com.zuan.kernelmanager.next.library.device.monitor.MonitorReader
 import kotlin.math.abs
 import java.util.concurrent.ExecutorService
@@ -132,6 +134,7 @@ class BatteryMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        RootPersistenceUtils.applyRootExemptions(this)
         isRunning = true
         createNotificationChannel()
         
@@ -168,6 +171,8 @@ class BatteryMonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            getSharedPreferences("battery_prefs", MODE_PRIVATE)
+                .edit().putBoolean("monitor_enabled", false).apply()
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -287,8 +292,13 @@ class BatteryMonitorService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val openIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, openIntent, PendingIntent.FLAG_IMMUTABLE)
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("TARGET_ROUTE", com.zuan.kernelmanager.next.ui.navigation.NavigationRoute.BatteryController.route)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, openIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(cachedTitle) // Judul utama
@@ -335,12 +345,18 @@ class BatteryMonitorService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         val restartServiceIntent = Intent(applicationContext, this.javaClass)
         restartServiceIntent.setPackage(packageName)
-        val restartServicePendingIntent = PendingIntent.getService(
-            applicationContext, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val alarmService = applicationContext.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        val restartServicePendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(
+                applicationContext, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+        } else {
+            PendingIntent.getService(
+                applicationContext, 1, restartServiceIntent, PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+        }
+        val alarmService = applicationContext.getSystemService(ALARM_SERVICE) as android.app.AlarmManager
         alarmService.set(
-            android.app.AlarmManager.ELAPSED_REALTIME,
+            AlarmManager.ELAPSED_REALTIME_WAKEUP,
             SystemClock.elapsedRealtime() + 1000,
             restartServicePendingIntent
         )

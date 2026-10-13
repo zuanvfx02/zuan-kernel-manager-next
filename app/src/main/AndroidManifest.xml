@@ -192,6 +192,7 @@
             android:name=".service.FpsOverlayService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -202,6 +203,7 @@
             android:name=".service.SmartCutoffService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -210,9 +212,10 @@
 
         <service 
             android:name=".service.BatteryMonitorService" 
-            android:foregroundServiceType="specialUse|dataSync"
-            android:exported="false" 
-            android:enabled="true">
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="specialUse|dataSync">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="battery_monitor" />
@@ -236,6 +239,7 @@
             android:name=".feature.terminal.FloatingTerminalService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="dataSync" />
 
         <!-- Game Space: detector + side panel + crosshair -->
@@ -243,6 +247,7 @@
             android:name=".feature.gamespace.GameDetectorService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -301,6 +306,7 @@
             android:name=".feature.process.FloatingProcessService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
@@ -311,6 +317,7 @@
             android:name=".feature.activitylauncher.FloatingActivityService"
             android:enabled="true"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

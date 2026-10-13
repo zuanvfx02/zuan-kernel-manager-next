@@ -268,7 +268,34 @@ val availableColors = listOf(
 )
 
 class SettingsPreference(context: Context) {
-    private val prefs: SharedPreferences = context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+    private val prefs: SharedPreferences = runCatching {
+        context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+    }.getOrNull() ?: object : SharedPreferences {
+        override fun getAll(): MutableMap<String, *> = mutableMapOf<String, Any?>()
+        override fun getString(key: String?, defValue: String?): String? = defValue
+        override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = defValues
+        override fun getInt(key: String?, defValue: Int): Int = defValue
+        override fun getLong(key: String?, defValue: Long): Long = defValue
+        override fun getFloat(key: String?, defValue: Float): Float = defValue
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean = defValue
+        override fun contains(key: String?): Boolean = false
+        override fun edit(): SharedPreferences.Editor = DummyEditor()
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
+    }
+
+    private class DummyEditor : SharedPreferences.Editor {
+        override fun putString(key: String?, value: String?): SharedPreferences.Editor = this
+        override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = this
+        override fun putInt(key: String?, value: Int): SharedPreferences.Editor = this
+        override fun putLong(key: String?, value: Long): SharedPreferences.Editor = this
+        override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = this
+        override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = this
+        override fun remove(key: String?): SharedPreferences.Editor = this
+        override fun clear(): SharedPreferences.Editor = this
+        override fun commit(): Boolean = true
+        override fun apply() {}
+    }
 
     // --- STATES ---
     // --- VERSI LITE (Lite vs Pro) ---
@@ -487,6 +514,118 @@ class SettingsPreference(context: Context) {
         _adaptiveEcoMode.value = enabled
     }
 
+    // --- FPS OVERLAY STATES ---
+    private val _fpsOverlayEnabled = MutableStateFlow(getFpsOverlayEnabled())
+    val fpsOverlayEnabled: StateFlow<Boolean> = _fpsOverlayEnabled.asStateFlow()
+
+    private val _fpsStyle = MutableStateFlow(getFpsStyle())
+    val fpsStyle: StateFlow<Int> = _fpsStyle.asStateFlow()
+
+    private val _fpsOrientation = MutableStateFlow(getFpsOrientation())
+    val fpsOrientation: StateFlow<Int> = _fpsOrientation.asStateFlow()
+
+    private val _fpsColor = MutableStateFlow(getFpsColor())
+    val fpsColor: StateFlow<String> = _fpsColor.asStateFlow()
+
+    private val _fpsSize = MutableStateFlow(getFpsSize())
+    val fpsSize: StateFlow<Float> = _fpsSize.asStateFlow()
+
+    private val _fpsWidthScale = MutableStateFlow(getFpsWidthScale())
+    val fpsWidthScale: StateFlow<Float> = _fpsWidthScale.asStateFlow()
+
+    private val _fpsAlpha = MutableStateFlow(getFpsAlpha())
+    val fpsAlpha: StateFlow<Float> = _fpsAlpha.asStateFlow()
+
+    private val _fpsShowFps = MutableStateFlow(getFpsShowFps())
+    val fpsShowFps: StateFlow<Boolean> = _fpsShowFps.asStateFlow()
+
+    private val _fpsShowCpu = MutableStateFlow(getFpsShowCpu())
+    val fpsShowCpu: StateFlow<Boolean> = _fpsShowCpu.asStateFlow()
+
+    private val _fpsShowWatts = MutableStateFlow(getFpsShowWatts())
+    val fpsShowWatts: StateFlow<Boolean> = _fpsShowWatts.asStateFlow()
+
+    private val _fpsShowTemp = MutableStateFlow(getFpsShowTemp())
+    val fpsShowTemp: StateFlow<Boolean> = _fpsShowTemp.asStateFlow()
+
+    private val _fpsShowRam = MutableStateFlow(getFpsShowRam())
+    val fpsShowRam: StateFlow<Boolean> = _fpsShowRam.asStateFlow()
+
+    private val _fpsShowRender = MutableStateFlow(getFpsShowRender())
+    val fpsShowRender: StateFlow<Boolean> = _fpsShowRender.asStateFlow()
+
+    private val _fpsShowGpuUsage = MutableStateFlow(getFpsShowGpuUsage())
+    val fpsShowGpuUsage: StateFlow<Boolean> = _fpsShowGpuUsage.asStateFlow()
+
+    private val _fpsShowCpuTemp = MutableStateFlow(getFpsShowCpuTemp())
+    val fpsShowCpuTemp: StateFlow<Boolean> = _fpsShowCpuTemp.asStateFlow()
+
+    private val _fpsShowCpuFreq = MutableStateFlow(getFpsShowCpuFreq())
+    val fpsShowCpuFreq: StateFlow<Boolean> = _fpsShowCpuFreq.asStateFlow()
+
+    private val _fpsShowGpuFreq = MutableStateFlow(getFpsShowGpuFreq())
+    val fpsShowGpuFreq: StateFlow<Boolean> = _fpsShowGpuFreq.asStateFlow()
+
+    private val _fpsShowGpuTemp = MutableStateFlow(getFpsShowGpuTemp())
+    val fpsShowGpuTemp: StateFlow<Boolean> = _fpsShowGpuTemp.asStateFlow()
+
+    private val _fpsPcVariant = MutableStateFlow(getFpsPcVariant())
+    val fpsPcVariant: StateFlow<Int> = _fpsPcVariant.asStateFlow()
+
+    private val _fpsRadius = MutableStateFlow(getFpsRadius())
+    val fpsRadius: StateFlow<Float> = _fpsRadius.asStateFlow()
+
+    private val _fpsBgMode = MutableStateFlow(getFpsBgMode())
+    val fpsBgMode: StateFlow<Int> = _fpsBgMode.asStateFlow()
+
+    private val _fpsBorder = MutableStateFlow(getFpsBorder())
+    val fpsBorder: StateFlow<Boolean> = _fpsBorder.asStateFlow()
+
+    private val _fpsShadow = MutableStateFlow(getFpsShadow())
+    val fpsShadow: StateFlow<Boolean> = _fpsShadow.asStateFlow()
+
+    private val _fpsInterval = MutableStateFlow(getFpsInterval())
+    val fpsInterval: StateFlow<Long> = _fpsInterval.asStateFlow()
+
+    private val _fpsPosition = MutableStateFlow(getFpsPosition())
+    val fpsPosition: StateFlow<String> = _fpsPosition.asStateFlow()
+
+    private val _fpsShowFrameTime = MutableStateFlow(getFpsShowFrameTime())
+    val fpsShowFrameTime: StateFlow<Boolean> = _fpsShowFrameTime.asStateFlow()
+
+    private val _fpsShowOnePercent = MutableStateFlow(getFpsShowOnePercent())
+    val fpsShowOnePercent: StateFlow<Boolean> = _fpsShowOnePercent.asStateFlow()
+
+    private val _fpsShowZeroOnePercent = MutableStateFlow(getFpsShowZeroOnePercent())
+    val fpsShowZeroOnePercent: StateFlow<Boolean> = _fpsShowZeroOnePercent.asStateFlow()
+
+    private val _fpsShowRamPercent = MutableStateFlow(getFpsShowRamPercent())
+    val fpsShowRamPercent: StateFlow<Boolean> = _fpsShowRamPercent.asStateFlow()
+
+    private val _fpsShowBattery = MutableStateFlow(getFpsShowBattery())
+    val fpsShowBattery: StateFlow<Boolean> = _fpsShowBattery.asStateFlow()
+
+    private val _fpsShowRefresh = MutableStateFlow(getFpsShowRefresh())
+    val fpsShowRefresh: StateFlow<Boolean> = _fpsShowRefresh.asStateFlow()
+
+    private val _fpsShowJank = MutableStateFlow(getFpsShowJank())
+    val fpsShowJank: StateFlow<Boolean> = _fpsShowJank.asStateFlow()
+
+    private val _fpsShowRecord = MutableStateFlow(getFpsShowRecord())
+    val fpsShowRecord: StateFlow<Boolean> = _fpsShowRecord.asStateFlow()
+
+    private val _fpsShowSpark = MutableStateFlow(getFpsShowSpark())
+    val fpsShowSpark: StateFlow<Boolean> = _fpsShowSpark.asStateFlow()
+
+    private val _fpsShowSizeControls = MutableStateFlow(getFpsShowSizeControls())
+    val fpsShowSizeControls: StateFlow<Boolean> = _fpsShowSizeControls.asStateFlow()
+
+    private val _fpsPosX = MutableStateFlow(getFpsPosX())
+    val fpsPosX: StateFlow<Int> = _fpsPosX.asStateFlow()
+
+    private val _fpsPosY = MutableStateFlow(getFpsPosY())
+    val fpsPosY: StateFlow<Int> = _fpsPosY.asStateFlow()
+
     // --- UPDATE CHECK (GitHub releases zuanvfx02/zuan-kernel-manager-next) ---
     private val _checkManagerUpdates = MutableStateFlow(getCheckManagerUpdates())
     val checkManagerUpdates: StateFlow<Boolean> = _checkManagerUpdates.asStateFlow()
@@ -523,6 +662,45 @@ class SettingsPreference(context: Context) {
     }
 
     companion object {
+        private const val FPS_OVERLAY_ENABLED_KEY = "fps_overlay_enabled"
+        private const val FPS_STYLE_KEY = "fps_overlay_style"
+        private const val FPS_ORIENTATION_KEY = "fps_overlay_orientation"
+        private const val FPS_COLOR_KEY = "fps_overlay_color"
+        private const val FPS_SIZE_KEY = "fps_overlay_size"
+        private const val FPS_WIDTH_SCALE_KEY = "fps_overlay_width_scale"
+        private const val FPS_ALPHA_KEY = "fps_overlay_alpha"
+        private const val FPS_SHOW_FPS_KEY = "fps_show_fps"
+        private const val FPS_SHOW_CPU_KEY = "fps_show_cpu"
+        private const val FPS_SHOW_WATTS_KEY = "fps_show_watts"
+        private const val FPS_SHOW_TEMP_KEY = "fps_show_temp"
+        private const val FPS_SHOW_RAM_KEY = "fps_show_ram"
+        private const val FPS_SHOW_RENDER_KEY = "fps_show_render"
+        private const val FPS_SHOW_GPU_USAGE_KEY = "fps_show_gpu_usage"
+        private const val FPS_SHOW_CPU_TEMP_KEY = "fps_show_cpu_temp"
+        private const val FPS_SHOW_CPU_FREQ_KEY = "fps_show_cpu_freq"
+        private const val FPS_SHOW_GPU_FREQ_KEY = "fps_show_gpu_freq"
+        private const val FPS_SHOW_GPU_TEMP_KEY = "fps_show_gpu_temp"
+
+        private const val FPS_PC_VARIANT_KEY = "fps_overlay_pc_variant"
+        private const val FPS_RADIUS_KEY = "fps_overlay_radius"
+        private const val FPS_BG_MODE_KEY = "fps_overlay_bg_mode"
+        private const val FPS_BORDER_KEY = "fps_overlay_border"
+        private const val FPS_SHADOW_KEY = "fps_overlay_shadow"
+        private const val FPS_INTERVAL_KEY = "fps_overlay_interval"
+        private const val FPS_POSITION_KEY = "fps_overlay_position"
+        private const val FPS_SHOW_FRAMETIME_KEY = "fps_show_frametime"
+        private const val FPS_SHOW_1LOW_KEY = "fps_show_1low"
+        private const val FPS_SHOW_01LOW_KEY = "fps_show_01low"
+        private const val FPS_SHOW_RAM_PERCENT_KEY = "fps_show_ram_percent"
+        private const val FPS_SHOW_BATTERY_KEY = "fps_show_battery"
+        private const val FPS_SHOW_REFRESH_KEY = "fps_show_refresh"
+        private const val FPS_SHOW_JANK_KEY = "fps_show_jank"
+        private const val FPS_SHOW_RECORD_KEY = "fps_show_record"
+        private const val FPS_SHOW_SPARK_KEY = "fps_show_spark"
+        private const val FPS_SHOW_SIZE_CONTROLS_KEY = "fps_show_size_controls"
+        private const val FPS_POS_X_KEY = "fps_overlay_pos_x"
+        private const val FPS_POS_Y_KEY = "fps_overlay_pos_y"
+
         private const val SHOW_UPDATE_DIALOG_KEY = "show_update_dialog"
         private const val LAST_UPDATE_CHECK_KEY = "last_update_check"
         private const val CHECK_MANAGER_UPDATES_KEY = "check_manager_updates"
@@ -618,12 +796,14 @@ class SettingsPreference(context: Context) {
 
     private fun menuIconKey(menuId: String): String = CUSTOM_ICON_IMAGE_MENU_PREFIX + menuId.replace(Regex("[^A-Za-z0-9_.-]"), "_")
 
-    private fun loadCustomIconImagePaths(): Map<String, String> = prefs.all
-        .filterKeys { it.startsWith(CUSTOM_ICON_IMAGE_MENU_PREFIX) }
-        .mapNotNull { (key, value) ->
-            val path = value as? String ?: return@mapNotNull null
-            key.removePrefix(CUSTOM_ICON_IMAGE_MENU_PREFIX) to path
-        }.toMap()
+    private fun loadCustomIconImagePaths(): Map<String, String> = runCatching {
+        prefs.all
+            ?.filterKeys { it.startsWith(CUSTOM_ICON_IMAGE_MENU_PREFIX) }
+            ?.mapNotNull { (key, value) ->
+                val path = value as? String ?: return@mapNotNull null
+                key.removePrefix(CUSTOM_ICON_IMAGE_MENU_PREFIX) to path
+            }?.toMap() ?: emptyMap()
+    }.getOrDefault(emptyMap())
 
     fun setCustomIconImagePathForMenu(menuId: String, path: String?) {
         val key = menuIconKey(menuId)
@@ -632,10 +812,12 @@ class SettingsPreference(context: Context) {
     }
 
     private fun menuShapeKey(menuId: String): String = MENU_ICON_SHAPE_PREFIX + menuId.replace(Regex("[^A-Za-z0-9_.-]"), "_")
-    private fun loadMenuIconShapes(): Map<String, String> = prefs.all.mapNotNull { (key, value) ->
-        if (!key.startsWith(MENU_ICON_SHAPE_PREFIX) || value !is String) null
-        else key.removePrefix(MENU_ICON_SHAPE_PREFIX) to value
-    }.toMap()
+    private fun loadMenuIconShapes(): Map<String, String> = runCatching {
+        prefs.all?.mapNotNull { (key, value) ->
+            if (!key.startsWith(MENU_ICON_SHAPE_PREFIX) || value !is String) null
+            else key.removePrefix(MENU_ICON_SHAPE_PREFIX) to value
+        }?.toMap() ?: emptyMap()
+    }.getOrDefault(emptyMap())
     fun setMenuIconShape(menuId: String, style: ZkmIconShapeStyle) {
         prefs.edit { putString(menuShapeKey(menuId), style.name) }
         _menuIconShapes.value = loadMenuIconShapes()
@@ -837,6 +1019,123 @@ class SettingsPreference(context: Context) {
         _acceptedRisk.value = accepted 
     }
     private fun getAcceptedRisk(): Boolean = prefs.getBoolean(ACCEPTED_RISK_KEY, false)
+
+    // --- FPS OVERLAY GETTERS/SETTERS ---
+    fun setFpsOverlayEnabled(enabled: Boolean) { prefs.edit { putBoolean(FPS_OVERLAY_ENABLED_KEY, enabled) }; _fpsOverlayEnabled.value = enabled }
+    private fun getFpsOverlayEnabled(): Boolean = prefs.getBoolean(FPS_OVERLAY_ENABLED_KEY, false)
+
+    fun setFpsStyle(style: Int) { prefs.edit { putInt(FPS_STYLE_KEY, style) }; _fpsStyle.value = style }
+    private fun getFpsStyle(): Int = prefs.getInt(FPS_STYLE_KEY, 0)
+
+    fun setFpsOrientation(orientation: Int) { prefs.edit { putInt(FPS_ORIENTATION_KEY, orientation) }; _fpsOrientation.value = orientation }
+    private fun getFpsOrientation(): Int = prefs.getInt(FPS_ORIENTATION_KEY, 0)
+
+    fun setFpsColor(color: String) { prefs.edit { putString(FPS_COLOR_KEY, color) }; _fpsColor.value = color }
+    private fun getFpsColor(): String = prefs.getString(FPS_COLOR_KEY, "#00FF00") ?: "#00FF00"
+
+    fun setFpsSize(size: Float) { prefs.edit { putFloat(FPS_SIZE_KEY, size) }; _fpsSize.value = size }
+    private fun getFpsSize(): Float = prefs.getFloat(FPS_SIZE_KEY, 14f)
+
+    fun setFpsWidthScale(scale: Float) { prefs.edit { putFloat(FPS_WIDTH_SCALE_KEY, scale) }; _fpsWidthScale.value = scale }
+    private fun getFpsWidthScale(): Float = prefs.getFloat(FPS_WIDTH_SCALE_KEY, 1f)
+
+    fun setFpsAlpha(alpha: Float) { prefs.edit { putFloat(FPS_ALPHA_KEY, alpha) }; _fpsAlpha.value = alpha }
+    private fun getFpsAlpha(): Float = prefs.getFloat(FPS_ALPHA_KEY, 0.5f)
+
+    fun setFpsShowFps(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_FPS_KEY, show) }; _fpsShowFps.value = show }
+    private fun getFpsShowFps(): Boolean = prefs.getBoolean(FPS_SHOW_FPS_KEY, true)
+
+    fun setFpsShowCpu(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_CPU_KEY, show) }; _fpsShowCpu.value = show }
+    private fun getFpsShowCpu(): Boolean = prefs.getBoolean(FPS_SHOW_CPU_KEY, true)
+
+    fun setFpsShowWatts(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_WATTS_KEY, show) }; _fpsShowWatts.value = show }
+    private fun getFpsShowWatts(): Boolean = prefs.getBoolean(FPS_SHOW_WATTS_KEY, true)
+
+    fun setFpsShowTemp(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_TEMP_KEY, show) }; _fpsShowTemp.value = show }
+    private fun getFpsShowTemp(): Boolean = prefs.getBoolean(FPS_SHOW_TEMP_KEY, true)
+
+    fun setFpsShowRam(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_RAM_KEY, show) }; _fpsShowRam.value = show }
+    private fun getFpsShowRam(): Boolean = prefs.getBoolean(FPS_SHOW_RAM_KEY, true)
+
+    fun setFpsShowRender(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_RENDER_KEY, show) }; _fpsShowRender.value = show }
+    private fun getFpsShowRender(): Boolean = prefs.getBoolean(FPS_SHOW_RENDER_KEY, false)
+
+    fun setFpsShowGpuUsage(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_GPU_USAGE_KEY, show) }; _fpsShowGpuUsage.value = show }
+    private fun getFpsShowGpuUsage(): Boolean = prefs.getBoolean(FPS_SHOW_GPU_USAGE_KEY, false)
+
+    fun setFpsShowCpuTemp(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_CPU_TEMP_KEY, show) }; _fpsShowCpuTemp.value = show }
+    private fun getFpsShowCpuTemp(): Boolean = prefs.getBoolean(FPS_SHOW_CPU_TEMP_KEY, false)
+
+    fun setFpsShowCpuFreq(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_CPU_FREQ_KEY, show) }; _fpsShowCpuFreq.value = show }
+    private fun getFpsShowCpuFreq(): Boolean = prefs.getBoolean(FPS_SHOW_CPU_FREQ_KEY, false)
+
+    fun setFpsShowGpuFreq(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_GPU_FREQ_KEY, show) }; _fpsShowGpuFreq.value = show }
+    private fun getFpsShowGpuFreq(): Boolean = prefs.getBoolean(FPS_SHOW_GPU_FREQ_KEY, false)
+
+    fun setFpsShowGpuTemp(show: Boolean) { prefs.edit { putBoolean(FPS_SHOW_GPU_TEMP_KEY, show) }; _fpsShowGpuTemp.value = show }
+    private fun getFpsShowGpuTemp(): Boolean = prefs.getBoolean(FPS_SHOW_GPU_TEMP_KEY, false)
+
+    fun setFpsPcVariant(v: Int) { prefs.edit { putInt(FPS_PC_VARIANT_KEY, v) }; _fpsPcVariant.value = v }
+    private fun getFpsPcVariant(): Int = prefs.getInt(FPS_PC_VARIANT_KEY, 1)
+
+    fun setFpsRadius(v: Float) { prefs.edit { putFloat(FPS_RADIUS_KEY, v) }; _fpsRadius.value = v }
+    private fun getFpsRadius(): Float = prefs.getFloat(FPS_RADIUS_KEY, 10f)
+
+    fun setFpsBgMode(v: Int) { prefs.edit { putInt(FPS_BG_MODE_KEY, v) }; _fpsBgMode.value = v }
+    private fun getFpsBgMode(): Int = prefs.getInt(FPS_BG_MODE_KEY, 0)
+
+    fun setFpsBorder(v: Boolean) { prefs.edit { putBoolean(FPS_BORDER_KEY, v) }; _fpsBorder.value = v }
+    private fun getFpsBorder(): Boolean = prefs.getBoolean(FPS_BORDER_KEY, true)
+
+    fun setFpsShadow(v: Boolean) { prefs.edit { putBoolean(FPS_SHADOW_KEY, v) }; _fpsShadow.value = v }
+    private fun getFpsShadow(): Boolean = prefs.getBoolean(FPS_SHADOW_KEY, false)
+
+    fun setFpsInterval(v: Long) { prefs.edit { putLong(FPS_INTERVAL_KEY, v) }; _fpsInterval.value = v }
+    private fun getFpsInterval(): Long = prefs.getLong(FPS_INTERVAL_KEY, 1000L)
+
+    fun setFpsPosition(v: String) { prefs.edit { putString(FPS_POSITION_KEY, v) }; _fpsPosition.value = v }
+    private fun getFpsPosition(): String = prefs.getString(FPS_POSITION_KEY, "TopLeft") ?: "TopLeft"
+
+    fun setFpsShowFrameTime(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_FRAMETIME_KEY, v) }; _fpsShowFrameTime.value = v }
+    private fun getFpsShowFrameTime(): Boolean = prefs.getBoolean(FPS_SHOW_FRAMETIME_KEY, false)
+
+    fun setFpsShowOnePercent(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_1LOW_KEY, v) }; _fpsShowOnePercent.value = v }
+    private fun getFpsShowOnePercent(): Boolean = prefs.getBoolean(FPS_SHOW_1LOW_KEY, false)
+
+    fun setFpsShowZeroOnePercent(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_01LOW_KEY, v) }; _fpsShowZeroOnePercent.value = v }
+    private fun getFpsShowZeroOnePercent(): Boolean = prefs.getBoolean(FPS_SHOW_01LOW_KEY, false)
+
+    fun setFpsShowRamPercent(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_RAM_PERCENT_KEY, v) }; _fpsShowRamPercent.value = v }
+    private fun getFpsShowRamPercent(): Boolean = prefs.getBoolean(FPS_SHOW_RAM_PERCENT_KEY, false)
+
+    fun setFpsShowBattery(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_BATTERY_KEY, v) }; _fpsShowBattery.value = v }
+    private fun getFpsShowBattery(): Boolean = prefs.getBoolean(FPS_SHOW_BATTERY_KEY, false)
+
+    fun setFpsShowRefresh(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_REFRESH_KEY, v) }; _fpsShowRefresh.value = v }
+    private fun getFpsShowRefresh(): Boolean = prefs.getBoolean(FPS_SHOW_REFRESH_KEY, false)
+
+    fun setFpsShowJank(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_JANK_KEY, v) }; _fpsShowJank.value = v }
+    private fun getFpsShowJank(): Boolean = prefs.getBoolean(FPS_SHOW_JANK_KEY, false)
+
+    fun setFpsShowRecord(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_RECORD_KEY, v) }; _fpsShowRecord.value = v }
+    private fun getFpsShowRecord(): Boolean = prefs.getBoolean(FPS_SHOW_RECORD_KEY, true)
+
+    fun setFpsShowSpark(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_SPARK_KEY, v) }; _fpsShowSpark.value = v }
+    private fun getFpsShowSpark(): Boolean = prefs.getBoolean(FPS_SHOW_SPARK_KEY, false)
+
+    fun setFpsShowSizeControls(v: Boolean) { prefs.edit { putBoolean(FPS_SHOW_SIZE_CONTROLS_KEY, v) }; _fpsShowSizeControls.value = v }
+    private fun getFpsShowSizeControls(): Boolean = prefs.getBoolean(FPS_SHOW_SIZE_CONTROLS_KEY, true)
+
+    fun setFpsPos(x: Int, y: Int) {
+        prefs.edit { 
+            putInt(FPS_POS_X_KEY, x)
+            putInt(FPS_POS_Y_KEY, y)
+        }
+        _fpsPosX.value = x
+        _fpsPosY.value = y
+    }
+    private fun getFpsPosX(): Int = prefs.getInt(FPS_POS_X_KEY, 20)
+    private fun getFpsPosY(): Int = prefs.getInt(FPS_POS_Y_KEY, 100)
 }
 
 private fun SharedPreferences.toFloat(key: String, defValue: Float): Float = try { this.getFloat(key, defValue) } catch (e: Exception) { defValue }

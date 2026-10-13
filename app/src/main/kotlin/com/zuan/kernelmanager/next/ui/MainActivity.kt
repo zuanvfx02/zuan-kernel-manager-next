@@ -21,6 +21,7 @@ import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import com.zuan.kernelmanager.next.utils.RootPersistenceUtils
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -171,6 +172,7 @@ import com.zuan.kernelmanager.next.ui.components.ZkmHazeStyleCache
 class MainActivity : AppCompatActivity() {
     private var isRoot = false
     private var showRootDialog by mutableStateOf(false)
+    private var pendingRoute by mutableStateOf<String?>(null)
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
@@ -178,8 +180,12 @@ class MainActivity : AppCompatActivity() {
     private val checkRoot = Runnable {
         Shell.getShell { shell ->
             isRoot = shell.isRoot
-            // Only block the app when the user explicitly chose ROOT mode.
-            if (!isRoot && WorkingModeManager.current.hasRoot) { showRootDialog = true }
+            if (isRoot) {
+                RootPersistenceUtils.applyRootExemptions(this@MainActivity)
+            } else {
+                // Only block the app when the user explicitly chose ROOT mode.
+                if (!isRoot && WorkingModeManager.current.hasRoot) { showRootDialog = true }
+            }
         }
     }
 
@@ -232,6 +238,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen: SplashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        val routeExtra = intent?.getStringExtra("TARGET_ROUTE")
+        if (!routeExtra.isNullOrBlank()) {
+            pendingRoute = routeExtra
+        }
         // Widgets / app shortcuts can ask to open a specific screen.
         com.zuan.kernelmanager.next.feature.widget.ZkmDeepLink.handle(intent)
         // Long-press app-icon shortcuts (published at runtime).
@@ -358,7 +368,9 @@ class MainActivity : AppCompatActivity() {
                                     ZuanKernelManagerApp(
                                         showRootDialog = showRootDialog,
                                         backgroundHazeState = mainBackgroundHazeState,
-                                        liquidBackdrop = rootLiquidBackdrop
+                                        liquidBackdrop = rootLiquidBackdrop,
+                                        pendingRoute = pendingRoute,
+                                        onPendingRouteHandled = { pendingRoute = null }
                                     )
                                 }
                             }
@@ -372,6 +384,10 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        val routeExtra = intent.getStringExtra("TARGET_ROUTE")
+        if (!routeExtra.isNullOrBlank()) {
+            pendingRoute = routeExtra
+        }
         com.zuan.kernelmanager.next.feature.widget.ZkmDeepLink.handle(intent)
     }
 
@@ -581,7 +597,9 @@ private fun MainActivityWallpaperBackground(
 fun ZuanKernelManagerApp(
     showRootDialog: Boolean = false,
     backgroundHazeState: HazeState,
-    liquidBackdrop: Backdrop
+    liquidBackdrop: Backdrop,
+    pendingRoute: String? = null,
+    onPendingRouteHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -614,11 +632,19 @@ fun ZuanKernelManagerApp(
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Deep link from a home-screen widget / app shortcut (see feature/widget).
-    val pendingRoute by com.zuan.kernelmanager.next.feature.widget.ZkmDeepLink.pending.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingRoute) {
-        val target = pendingRoute ?: return@LaunchedEffect
+    val pendingRouteFromWidget by com.zuan.kernelmanager.next.feature.widget.ZkmDeepLink.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingRouteFromWidget) {
+        val target = pendingRouteFromWidget ?: return@LaunchedEffect
         com.zuan.kernelmanager.next.feature.widget.ZkmDeepLink.pending.value = null
         runCatching { navController.navigate(target) { launchSingleTop = true } }
+    }
+
+    LaunchedEffect(pendingRoute) {
+        val target = pendingRoute ?: return@LaunchedEffect
+        if (target.isNotBlank()) {
+            runCatching { navController.navigate(target) { launchSingleTop = true } }
+            onPendingRouteHandled()
+        }
     }
     
     var activeDialog by remember { mutableStateOf(ActiveDialog.NONE) }

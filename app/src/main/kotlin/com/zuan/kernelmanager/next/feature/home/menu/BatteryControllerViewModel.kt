@@ -197,12 +197,16 @@ class BatteryControllerViewModel(application: Application) : AndroidViewModel(ap
             val savedSpeedTarget = prefs.getInt(KEY_SPEED_TARGET, if (actualUpper > 0) actualUpper else 3000)
             val savedCutoff = prefs.getFloat(KEY_CUTOFF_LIMIT, 80f)
             val savedMonitor = prefs.getBoolean(KEY_MONITOR_ENABLED, false)
+            val savedCutoffEnabled = prefs.getBoolean("cutoff_enabled", false)
             
             val isCutoffRunning = isServiceRunning(context, SmartCutoffService::class.java)
             val isMonitorRunning = isServiceRunning(context, BatteryMonitorService::class.java)
             
             if (savedMonitor && !isMonitorRunning) {
                 withContext(Dispatchers.Main) { toggleMonitor(context, true) }
+            }
+            if (savedCutoffEnabled && !isCutoffRunning) {
+                withContext(Dispatchers.Main) { toggleSmartCutoff(context, true) }
             }
 
             withContext(Dispatchers.Main) {
@@ -226,7 +230,7 @@ class BatteryControllerViewModel(application: Application) : AndroidViewModel(ap
                 _speedTargetMa.value = savedSpeedTarget
                 _chargingSpeed.value = savedSpeedTarget
                 _smartCutoffLimit.value = savedCutoff
-                _smartCutoffEnabled.value = isCutoffRunning
+                _smartCutoffEnabled.value = savedCutoffEnabled || isCutoffRunning
                 _monitorEnabled.value = savedMonitor
                 
                 _isLoading.value = false
@@ -313,6 +317,8 @@ class BatteryControllerViewModel(application: Application) : AndroidViewModel(ap
 
     fun toggleSmartCutoff(context: Context, enable: Boolean) {
         _smartCutoffEnabled.value = enable
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean("cutoff_enabled", enable).apply()
         val intent = Intent(context, SmartCutoffService::class.java)
         if (enable) {
             intent.putExtra(SmartCutoffService.EXTRA_LIMIT, _smartCutoffLimit.value.toInt())

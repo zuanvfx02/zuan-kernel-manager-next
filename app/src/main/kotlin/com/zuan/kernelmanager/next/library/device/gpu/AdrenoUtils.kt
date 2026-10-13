@@ -52,6 +52,7 @@ object AdrenoUtils {
     // Node berbasis Hz (satuan pasti): devfreq min/max_freq dan max_gpuclk. Dipakai sebagai jalur
     // utama untuk menulis, dan sebagai fallback baca bila node *_clock_mhz tidak ada di kernel.
     const val MAX_GPUCLK = "$KGSL_3D0_DIR/max_gpuclk"
+    const val MIN_GPUCLK = "$KGSL_3D0_DIR/min_gpuclk"
     const val DEVFREQ_MIN_FREQ = "$KGSL_3D0_DIR/devfreq/min_freq"
     const val DEVFREQ_MAX_FREQ = "$KGSL_3D0_DIR/devfreq/max_freq"
     const val DEVFREQ_AVAILABLE_FREQ = "$KGSL_3D0_DIR/devfreq/available_frequencies"
@@ -112,7 +113,7 @@ object AdrenoUtils {
     }
 
     /** Min/Max dalam MHz; fallback ke node Hz kalau kernel tidak punya *_clock_mhz. */
-    fun readMinFreqMHz(): String = firstMhz(MIN_FREQ_GPU, DEVFREQ_MIN_FREQ)
+    fun readMinFreqMHz(): String = firstMhz(MIN_FREQ_GPU, MIN_GPUCLK, DEVFREQ_MIN_FREQ)
     fun readMaxFreqMHz(): String = firstMhz(MAX_FREQ_GPU, MAX_GPUCLK, DEVFREQ_MAX_FREQ)
 
     /**
@@ -134,7 +135,7 @@ object AdrenoUtils {
         if (!isMin && curMin != null && mhz < curMin) setGpuClockMHz("min", mhz)  // turunkan min dulu
 
         val candidates = if (isMin) {
-            listOf(DEVFREQ_MIN_FREQ to hz.toString(), MIN_FREQ_GPU to mhz.toString())
+            listOf(MIN_FREQ_GPU to mhz.toString(), MIN_GPUCLK to mhz.toString(), DEVFREQ_MIN_FREQ to hz.toString())
         } else {
             listOf(MAX_GPUCLK to hz.toString(), DEVFREQ_MAX_FREQ to hz.toString(), MAX_FREQ_GPU to mhz.toString())
         }

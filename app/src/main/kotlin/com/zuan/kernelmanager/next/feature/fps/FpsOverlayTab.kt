@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.zuan.kernelmanager.next.R
+import com.zuan.kernelmanager.next.feature.settings.SettingsPreference
 import com.zuan.kernelmanager.next.library.service.FpsOverlayController
 import dev.chrisbanes.haze.HazeState
 import kotlinx.coroutines.delay
@@ -64,40 +65,41 @@ fun FpsManagerOverlayContent(
     topPadding: Dp
 ) {
     val context = LocalContext.current
+    val settingsPrefs = remember { SettingsPreference.getInstance(context) }
     var isOverlayEnabled by remember { mutableStateOf(FpsOverlayController.isRunning.value) }
-    var selectedStyle by remember { mutableIntStateOf(0) }
-    var pcVariant by remember { mutableIntStateOf(1) }
-    var androidOrientation by remember { mutableIntStateOf(0) }
-    var selectedColorHex by remember { mutableStateOf("#00FF00") }
-    var textSize by remember { mutableFloatStateOf(14f) }
-    var widthScale by remember { mutableFloatStateOf(1f) }
-    var bgAlpha by remember { mutableFloatStateOf(0.55f) }
-    var cornerRadius by remember { mutableFloatStateOf(10f) }
-    var bgMode by remember { mutableIntStateOf(0) }
-    var showBorder by remember { mutableStateOf(true) }
-    var showShadow by remember { mutableStateOf(false) }
-    var sampleInterval by remember { mutableLongStateOf(1000L) }
-    var position by remember { mutableStateOf("TopLeft") }
+    var selectedStyle by remember { mutableIntStateOf(settingsPrefs.fpsStyle.value) }
+    var pcVariant by remember { mutableIntStateOf(settingsPrefs.fpsPcVariant.value) }
+    var androidOrientation by remember { mutableIntStateOf(settingsPrefs.fpsOrientation.value) }
+    var selectedColorHex by remember { mutableStateOf(settingsPrefs.fpsColor.value) }
+    var textSize by remember { mutableFloatStateOf(settingsPrefs.fpsSize.value) }
+    var widthScale by remember { mutableFloatStateOf(settingsPrefs.fpsWidthScale.value) }
+    var bgAlpha by remember { mutableFloatStateOf(settingsPrefs.fpsAlpha.value) }
+    var cornerRadius by remember { mutableFloatStateOf(settingsPrefs.fpsRadius.value) }
+    var bgMode by remember { mutableIntStateOf(settingsPrefs.fpsBgMode.value) }
+    var showBorder by remember { mutableStateOf(settingsPrefs.fpsBorder.value) }
+    var showShadow by remember { mutableStateOf(settingsPrefs.fpsShadow.value) }
+    var sampleInterval by remember { mutableLongStateOf(settingsPrefs.fpsInterval.value) }
+    var position by remember { mutableStateOf(settingsPrefs.fpsPosition.value) }
 
-    var showFps by remember { mutableStateOf(true) }
-    var showFrameTime by remember { mutableStateOf(false) }
-    var showOnePercent by remember { mutableStateOf(false) }
-    var showZeroOnePercent by remember { mutableStateOf(false) }
-    var showCpu by remember { mutableStateOf(true) }
-    var showCpuFreq by remember { mutableStateOf(false) }
-    var showGpuLoad by remember { mutableStateOf(false) }
-    var showGpuFreq by remember { mutableStateOf(false) }
-    var showWatts by remember { mutableStateOf(true) }
-    var showTemp by remember { mutableStateOf(true) }
-    var showRam by remember { mutableStateOf(true) }
-    var showRamPercent by remember { mutableStateOf(false) }
-    var showBattery by remember { mutableStateOf(false) }
-    var showRefresh by remember { mutableStateOf(false) }
-    var showRender by remember { mutableStateOf(false) }
-    var showJank by remember { mutableStateOf(false) }
-    var showRecord by remember { mutableStateOf(true) }
-    var showSparkline by remember { mutableStateOf(false) }
-    var showSizeControls by remember { mutableStateOf(true) }
+    var showFps by remember { mutableStateOf(settingsPrefs.fpsShowFps.value) }
+    var showFrameTime by remember { mutableStateOf(settingsPrefs.fpsShowFrameTime.value) }
+    var showOnePercent by remember { mutableStateOf(settingsPrefs.fpsShowOnePercent.value) }
+    var showZeroOnePercent by remember { mutableStateOf(settingsPrefs.fpsShowZeroOnePercent.value) }
+    var showCpu by remember { mutableStateOf(settingsPrefs.fpsShowCpu.value) }
+    var showCpuFreq by remember { mutableStateOf(settingsPrefs.fpsShowCpuFreq.value) }
+    var showGpuLoad by remember { mutableStateOf(settingsPrefs.fpsShowGpuUsage.value) }
+    var showGpuFreq by remember { mutableStateOf(settingsPrefs.fpsShowGpuFreq.value) }
+    var showWatts by remember { mutableStateOf(settingsPrefs.fpsShowWatts.value) }
+    var showTemp by remember { mutableStateOf(settingsPrefs.fpsShowTemp.value) }
+    var showRam by remember { mutableStateOf(settingsPrefs.fpsShowRam.value) }
+    var showRamPercent by remember { mutableStateOf(settingsPrefs.fpsShowRamPercent.value) }
+    var showBattery by remember { mutableStateOf(settingsPrefs.fpsShowBattery.value) }
+    var showRefresh by remember { mutableStateOf(settingsPrefs.fpsShowRefresh.value) }
+    var showRender by remember { mutableStateOf(settingsPrefs.fpsShowRender.value) }
+    var showJank by remember { mutableStateOf(settingsPrefs.fpsShowJank.value) }
+    var showRecord by remember { mutableStateOf(settingsPrefs.fpsShowRecord.value) }
+    var showSparkline by remember { mutableStateOf(settingsPrefs.fpsShowSpark.value) }
+    var showSizeControls by remember { mutableStateOf(settingsPrefs.fpsShowSizeControls.value) }
     var showColorDialog by remember { mutableStateOf(false) }
 
     // [BUG FIX] Sebelumnya polling `while(true) + delay(700)` untuk membaca
@@ -108,6 +110,40 @@ fun FpsManagerOverlayContent(
     }
 
     fun updateService(pos: String? = null) {
+        settingsPrefs.setFpsStyle(selectedStyle)
+        settingsPrefs.setFpsPcVariant(pcVariant)
+        settingsPrefs.setFpsOrientation(androidOrientation)
+        settingsPrefs.setFpsColor(selectedColorHex)
+        settingsPrefs.setFpsSize(textSize)
+        settingsPrefs.setFpsWidthScale(widthScale)
+        settingsPrefs.setFpsAlpha(bgAlpha)
+        settingsPrefs.setFpsRadius(cornerRadius)
+        settingsPrefs.setFpsBgMode(bgMode)
+        settingsPrefs.setFpsBorder(showBorder)
+        settingsPrefs.setFpsShadow(showShadow)
+        settingsPrefs.setFpsInterval(sampleInterval)
+        settingsPrefs.setFpsPosition(pos ?: position)
+
+        settingsPrefs.setFpsShowFps(showFps)
+        settingsPrefs.setFpsShowFrameTime(showFrameTime)
+        settingsPrefs.setFpsShowOnePercent(showOnePercent)
+        settingsPrefs.setFpsShowZeroOnePercent(showZeroOnePercent)
+        settingsPrefs.setFpsShowCpu(showCpu)
+        settingsPrefs.setFpsShowCpuFreq(showCpuFreq)
+        settingsPrefs.setFpsShowGpuUsage(showGpuLoad)
+        settingsPrefs.setFpsShowGpuFreq(showGpuFreq)
+        settingsPrefs.setFpsShowWatts(showWatts)
+        settingsPrefs.setFpsShowTemp(showTemp)
+        settingsPrefs.setFpsShowRam(showRam)
+        settingsPrefs.setFpsShowRamPercent(showRamPercent)
+        settingsPrefs.setFpsShowBattery(showBattery)
+        settingsPrefs.setFpsShowRefresh(showRefresh)
+        settingsPrefs.setFpsShowRender(showRender)
+        settingsPrefs.setFpsShowJank(showJank)
+        settingsPrefs.setFpsShowRecord(showRecord)
+        settingsPrefs.setFpsShowSpark(showSparkline)
+        settingsPrefs.setFpsShowSizeControls(showSizeControls)
+
         if (!isOverlayEnabled) return
         val extras = buildMap<String, Any?> {
             put("STYLE", selectedStyle); put("PC_VARIANT", pcVariant); put("ORIENTATION", androidOrientation)
@@ -225,7 +261,7 @@ fun FpsManagerOverlayContent(
                 Card(Modifier.fillMaxWidth().padding(horizontal = 16.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = cardBg)) {
                     Column(Modifier.padding(16.dp)) {
                         AppearanceSlider(Icons.Default.FormatSize, stringResource(R.string.fps_text_size), textSize, 8f..30f, stringResource(R.string.fps_appearance_value_sp, textSize.toInt()), activeColor, { textSize = it }, { updateService() })
-                        Spacer(Modifier.height(14.dp)); AppearanceSlider(Icons.Default.AspectRatio, stringResource(R.string.fps_width_scale), widthScale, 0.7f..2.5f, stringResource(R.string.fps_appearance_value_scale, widthScale), activeColor, { widthScale = it }, { updateService() })
+                        Spacer(Modifier.height(14.dp)); AppearanceSlider(Icons.Default.AspectRatio, stringResource(R.string.fps_width_scale), widthScale, 0f..2.5f, stringResource(R.string.fps_appearance_value_scale, widthScale), activeColor, { widthScale = it }, { updateService() })
                         Spacer(Modifier.height(14.dp)); AppearanceSlider(Icons.Default.Opacity, stringResource(R.string.fps_background_alpha), bgAlpha, 0f..1f, stringResource(R.string.fps_appearance_value_percent, (bgAlpha * 100).toInt()), activeColor, { bgAlpha = it }, { updateService() })
                         Spacer(Modifier.height(14.dp)); AppearanceSlider(Icons.Default.RoundedCorner, stringResource(R.string.fps_corner_radius), cornerRadius, 0f..28f, stringResource(R.string.fps_appearance_value_dp, cornerRadius.toInt()), activeColor, { cornerRadius = it }, { updateService() })
                         Spacer(Modifier.height(8.dp))

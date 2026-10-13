@@ -1,12 +1,20 @@
 package com.zuan.kernelmanager.next.service
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.SystemClock
+import android.util.DisplayMetrics
+import android.util.Log
+import com.zuan.kernelmanager.next.utils.RootPersistenceUtils
+import com.zuan.kernelmanager.next.feature.settings.SettingsPreference
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -77,7 +85,7 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
 
     private lateinit var windowManager: WindowManager
     private var overlayView: ComposeView? = null
-    private lateinit var layoutParams: WindowManager.LayoutParams
+    private lateinit var overlayParams: WindowManager.LayoutParams
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
     private val store = ViewModelStore()
@@ -105,6 +113,9 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
     private var showCpuFreq by mutableStateOf(false)
     private var showGpuLoad by mutableStateOf(false)
     private var showGpuFreq by mutableStateOf(false)
+    private var showGpuUsage by mutableStateOf(false)
+    private var showCpuTemp by mutableStateOf(false)
+    private var showGpuTemp by mutableStateOf(false)
     private var showWatts by mutableStateOf(true)
     private var showTemp by mutableStateOf(true)
     private var showRam by mutableStateOf(true)
@@ -139,8 +150,49 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
     private var initialTouchX = 0f
     private var initialTouchY = 0f
 
+    private lateinit var settingsPreference: SettingsPreference
+
+    private fun loadInitialSettings() {
+        settingsPreference = SettingsPreference.getInstance(applicationContext)
+        styleMode = settingsPreference.fpsStyle.value
+        pcVariant = settingsPreference.fpsPcVariant.value
+        androidOrientation = settingsPreference.fpsOrientation.value
+        colorHex = settingsPreference.fpsColor.value
+        textSizeSp = settingsPreference.fpsSize.value
+        widthScale = settingsPreference.fpsWidthScale.value
+        bgAlpha = settingsPreference.fpsAlpha.value
+        cornerRadius = settingsPreference.fpsRadius.value
+        bgMode = settingsPreference.fpsBgMode.value
+        showBorder = settingsPreference.fpsBorder.value
+        showShadow = settingsPreference.fpsShadow.value
+        sampleIntervalMs = settingsPreference.fpsInterval.value
+        position = settingsPreference.fpsPosition.value
+
+        showFps = settingsPreference.fpsShowFps.value
+        showFrameTime = settingsPreference.fpsShowFrameTime.value
+        showOnePercent = settingsPreference.fpsShowOnePercent.value
+        showZeroOnePercent = settingsPreference.fpsShowZeroOnePercent.value
+        showCpu = settingsPreference.fpsShowCpu.value
+        showCpuFreq = settingsPreference.fpsShowCpuFreq.value
+        showGpuLoad = settingsPreference.fpsShowGpuUsage.value
+        showGpuFreq = settingsPreference.fpsShowGpuFreq.value
+        showWatts = settingsPreference.fpsShowWatts.value
+        showTemp = settingsPreference.fpsShowTemp.value
+        showRam = settingsPreference.fpsShowRam.value
+        showRamPercent = settingsPreference.fpsShowRamPercent.value
+        showBattery = settingsPreference.fpsShowBattery.value
+        showRefresh = settingsPreference.fpsShowRefresh.value
+        showRender = settingsPreference.fpsShowRender.value
+        showJank = settingsPreference.fpsShowJank.value
+        showRecordControl = settingsPreference.fpsShowRecord.value
+        showSparkline = settingsPreference.fpsShowSpark.value
+        showSizeControls = settingsPreference.fpsShowSizeControls.value
+    }
+
     override fun onCreate() {
         super.onCreate()
+        RootPersistenceUtils.applyRootExemptions(this)
+        loadInitialSettings()
         savedStateRegistryController.performRestore(null)
         overlayScale = prefs.getFloat("scale", 1f).coerceIn(MIN_SCALE, MAX_SCALE)
         collapsed = prefs.getBoolean("collapsed", false)
@@ -149,7 +201,9 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
         com.zuan.kernelmanager.next.core.kernel.KernelRootRuntime.initialize(applicationContext)
         FpsReader.init(applicationContext)
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        layoutParams = createLayoutParams(20, 200)
+        val savedX = settingsPreference.fpsPosX.value
+        val savedY = settingsPreference.fpsPosY.value
+        overlayParams = createLayoutParams(savedX, savedY)
         startForegroundNotification()
         isRunning = true
         FpsOverlayController.setRunning(true)
@@ -158,8 +212,56 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         intent?.let { readConfig(it) }
-        if (overlayView == null) setupOverlay() else overlayView?.invalidate()
+        if (overlayView == null) {
+            setupOverlay()
+        } else {
+            applyBoundaryConstraints()
+        }
         return START_STICKY
+    }
+
+    private fun getScreenSize(): Pair<Int, Int> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val metrics = windowManager.maximumWindowMetrics
+            metrics.bounds.width() to metrics.bounds.height()
+        } else {
+            val dm = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getRealMetrics(dm)
+            dm.widthPixels to dm.heightPixels
+        }
+    }
+
+    private fun applyBoundaryConstraints() {
+        overlayView?.post {
+            overlayView?.let { v ->
+                val (screenWidth, screenHeight) = getScreenSize()
+                
+                val viewWidth = v.width.coerceAtLeast(v.measuredWidth)
+                val viewHeight = v.height.coerceAtLeast(v.measuredHeight)
+
+                if (viewWidth <= 0 || viewHeight <= 0) return@let
+
+                val maxX = (screenWidth - viewWidth).coerceAtLeast(0)
+                val safetyMargin = (5 * resources.displayMetrics.density).toInt()
+                val maxY = (screenHeight - viewHeight - safetyMargin).coerceAtLeast(0)
+
+                val oldX = overlayParams.x
+                val oldY = overlayParams.y
+
+                overlayParams.x = overlayParams.x.coerceIn(0, maxX)
+                overlayParams.y = overlayParams.y.coerceIn(0, maxY)
+
+                if (overlayParams.x != oldX || overlayParams.y != oldY) {
+                    try {
+                        windowManager.updateViewLayout(overlayView, overlayParams)
+                        settingsPreference.setFpsPos(overlayParams.x, overlayParams.y)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Update Layout Error: ${e.message}")
+                    }
+                }
+            }
+        }
     }
 
     private fun readConfig(it: Intent) {
@@ -236,16 +338,17 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
                 )
             }
         }
-        windowManager.addView(overlayView, layoutParams)
+        windowManager.addView(overlayView, overlayParams)
+        applyBoundaryConstraints()
     }
 
     /** Geser overlay; posisi preset (center/kanan/bawah) diubah dulu ke koordinat absolut TOP|START. */
     private fun dragBy(dx: Float, dy: Float) {
         val view = overlayView ?: return
-        if (layoutParams.gravity != (Gravity.TOP or Gravity.START)) {
+        if (overlayParams.gravity != (Gravity.TOP or Gravity.START)) {
             val loc = IntArray(2)
             view.getLocationOnScreen(loc)
-            layoutParams.gravity = Gravity.TOP or Gravity.START
+            overlayParams.gravity = Gravity.TOP or Gravity.START
             overlayX = loc[0]; overlayY = loc[1]
         }
         overlayX += dx.toInt(); overlayY += dy.toInt()
@@ -259,27 +362,44 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
         val h = metrics.heightPixels
         val margin = (16 * metrics.density).roundToInt()
         when (p) {
-            "TopLeft" -> { layoutParams.gravity = Gravity.TOP or Gravity.START; layoutParams.x = margin; layoutParams.y = 100 }
-            "TopCenter" -> { layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; layoutParams.x = 0; layoutParams.y = 100 }
-            "TopRight" -> { layoutParams.gravity = Gravity.TOP or Gravity.END; layoutParams.x = margin; layoutParams.y = 100 }
-            "CenterLeft" -> { layoutParams.gravity = Gravity.CENTER_VERTICAL or Gravity.START; layoutParams.x = margin; layoutParams.y = 0 }
-            "Center" -> { layoutParams.gravity = Gravity.CENTER; layoutParams.x = 0; layoutParams.y = 0 }
-            "CenterRight" -> { layoutParams.gravity = Gravity.CENTER_VERTICAL or Gravity.END; layoutParams.x = margin; layoutParams.y = 0 }
-            "BottomLeft" -> { layoutParams.gravity = Gravity.BOTTOM or Gravity.START; layoutParams.x = margin; layoutParams.y = 90 }
-            "BottomCenter" -> { layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; layoutParams.x = 0; layoutParams.y = 90 }
-            "BottomRight" -> { layoutParams.gravity = Gravity.BOTTOM or Gravity.END; layoutParams.x = margin; layoutParams.y = 90 }
+            "TopLeft" -> { overlayParams.gravity = Gravity.TOP or Gravity.START; overlayParams.x = margin; overlayParams.y = 100 }
+            "TopCenter" -> { overlayParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL; overlayParams.x = 0; overlayParams.y = 100 }
+            "TopRight" -> { overlayParams.gravity = Gravity.TOP or Gravity.END; overlayParams.x = margin; overlayParams.y = 100 }
+            "CenterLeft" -> { overlayParams.gravity = Gravity.CENTER_VERTICAL or Gravity.START; overlayParams.x = margin; overlayParams.y = 0 }
+            "Center" -> { overlayParams.gravity = Gravity.CENTER; overlayParams.x = 0; overlayParams.y = 0 }
+            "CenterRight" -> { overlayParams.gravity = Gravity.CENTER_VERTICAL or Gravity.END; overlayParams.x = margin; overlayParams.y = 0 }
+            "BottomLeft" -> { overlayParams.gravity = Gravity.BOTTOM or Gravity.START; overlayParams.x = margin; overlayParams.y = 90 }
+            "BottomCenter" -> { overlayParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL; overlayParams.x = 0; overlayParams.y = 90 }
+            "BottomRight" -> { overlayParams.gravity = Gravity.BOTTOM or Gravity.END; overlayParams.x = margin; overlayParams.y = 90 }
         }
-        overlayX = layoutParams.x
-        overlayY = layoutParams.y
-        if (overlayView != null) windowManager.updateViewLayout(overlayView, layoutParams)
+        overlayX = overlayParams.x
+        overlayY = overlayParams.y
+        if (overlayView != null) {
+            windowManager.updateViewLayout(overlayView, overlayParams)
+            settingsPreference.setFpsPos(overlayParams.x, overlayParams.y)
+            applyBoundaryConstraints()
+        }
     }
 
     private fun updateOverlayPosition(xPos: Int, yPos: Int) {
-        layoutParams.x = xPos
-        layoutParams.y = yPos
+        val (screenWidth, screenHeight) = getScreenSize()
+        val viewWidth = overlayView?.width?.coerceAtLeast(overlayView?.measuredWidth ?: 0) ?: 200
+        val viewHeight = overlayView?.height?.coerceAtLeast(overlayView?.measuredHeight ?: 0) ?: 100
+        val maxX = (screenWidth - viewWidth).coerceAtLeast(0)
+        val safetyMargin = (5 * resources.displayMetrics.density).toInt()
+        val maxY = (screenHeight - viewHeight - safetyMargin).coerceAtLeast(0)
+
+        overlayParams.x = xPos.coerceIn(0, maxX)
+        overlayParams.y = yPos.coerceIn(0, maxY)
         if (overlayView != null) {
-            windowManager.updateViewLayout(overlayView, layoutParams)
+            windowManager.updateViewLayout(overlayView, overlayParams)
+            settingsPreference.setFpsPos(overlayParams.x, overlayParams.y)
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyBoundaryConstraints()
     }
 
     private fun createLayoutParams(xPos: Int, yPos: Int): WindowManager.LayoutParams {
@@ -302,11 +422,49 @@ class FpsOverlayService : LifecycleService(), SavedStateRegistryOwner, ViewModel
             val channel = NotificationChannel(channelId, "FPS Overlay", NotificationManager.IMPORTANCE_LOW)
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
+        val openIntent = Intent(this, com.zuan.kernelmanager.next.ui.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("TARGET_ROUTE", com.zuan.kernelmanager.next.ui.navigation.NavigationRoute.FpsManager.route)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, openIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         val notification = Notification.Builder(this, channelId)
             .setContentTitle(getString(R.string.lp_notification_overlay))
+            .setContentIntent(pendingIntent)
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .build()
         startForeground(1, notification)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (isRunning) {
+            val restartServiceIntent = Intent(applicationContext, FpsOverlayService::class.java).apply {
+                setPackage(packageName)
+            }
+            val restartServicePendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PendingIntent.getForegroundService(
+                    applicationContext,
+                    1,
+                    restartServiceIntent,
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+            } else {
+                PendingIntent.getService(
+                    applicationContext,
+                    1,
+                    restartServiceIntent,
+                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                )
+            }
+            val alarmService = applicationContext.getSystemService(ALARM_SERVICE) as AlarmManager
+            alarmService.set(
+                AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                SystemClock.elapsedRealtime() + 1000,
+                restartServicePendingIntent
+            )
+        }
     }
 
     override fun onDestroy() {
@@ -496,12 +654,12 @@ fun MainOverlayContent(
                 OverlayIconButton(Icons.Rounded.OpenInFull, onToggleCollapse)
             }
         } else {
-        Column(modifier = modifier.widthIn(min = (90f * widthScale).dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier = modifier.widthIn(min = (120f * widthScale).dp, max = (450f * widthScale).dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when (styleMode) {
-                0 -> AndroidStyleOverlay(orientation, customColor, fontSize, metrics, values)
-                1 -> PcStyleOverlay(pcVariant, fontSize, customColor, metrics, values)
-                2 -> MiniMonitorOverlay(fontSize, customColor, metrics, values)
-                else -> PcStyleOverlay(pcVariant, fontSize, customColor, metrics, values)
+                0 -> AndroidStyleOverlay(orientation, customColor, fontSize, widthScale, metrics, values)
+                1 -> PcStyleOverlay(pcVariant, fontSize, widthScale, customColor, metrics, values)
+                2 -> MiniMonitorOverlay(fontSize, widthScale, customColor, metrics, values)
+                else -> PcStyleOverlay(pcVariant, fontSize, widthScale, customColor, metrics, values)
             }
 
             if (metrics.recordControl || showSizeControls) {
@@ -591,7 +749,7 @@ fun RecordControlButton(isRec: Boolean, isPaused: Boolean, context: Context, int
 }
 
 @Composable
-fun AndroidStyleOverlay(orientation: Int, color: Color, size: Float, m: MetricsState, v: LiveValues) {
+fun AndroidStyleOverlay(orientation: Int, color: Color, size: Float, widthScale: Float, m: MetricsState, v: LiveValues) {
     val items = buildList<Pair<String, String>> {
         if (m.fps) add("FPS" to String.format("%.0f", v.fps))
         if (m.frameTime) add("Frame" to String.format("%.1f ms", v.frameTime))
@@ -610,8 +768,8 @@ fun AndroidStyleOverlay(orientation: Int, color: Color, size: Float, m: MetricsS
         if (m.render) add("API" to v.renderer)
         if (m.jank) add("JANK" to String.format("%.1f%%", v.jankPercent))
     }
-    if (orientation == 0) Column(horizontalAlignment = Alignment.Start) { items.forEach { AndroidRow(it.first, it.second, color, size) } }
-    else Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.widthIn(max = 420.dp)) { items.forEach { AndroidRow(it.first, it.second, color, size) } }
+    if (orientation == 0) Column(horizontalAlignment = Alignment.Start, modifier = Modifier.widthIn(min = (100f * widthScale).dp)) { items.forEach { AndroidRow(it.first, it.second, color, size) } }
+    else Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.widthIn(max = (400f * widthScale).dp)) { items.forEach { AndroidRow(it.first, it.second, color, size) } }
 }
 
 @Composable
@@ -623,13 +781,13 @@ fun AndroidRow(label: String, value: String, color: Color, size: Float) {
 }
 
 @Composable
-fun PcStyleOverlay(variant: Int, size: Float, accent: Color, m: MetricsState, v: LiveValues) {
+fun PcStyleOverlay(variant: Int, size: Float, widthScale: Float, accent: Color, m: MetricsState, v: LiveValues) {
     val mono = FontFamily.Monospace
     val green = Color(0xFF8CFF6A)
     val cyan = Color(0xFF67D9FF)
     val yellow = Color(0xFFFFD95A)
     val white = Color.White
-    Column(modifier = Modifier.widthIn(min = 150.dp, max = 300.dp)) {
+    Column(modifier = Modifier.widthIn(min = (140f * widthScale).dp, max = (420f * widthScale).dp)) {
         when (variant) {
             0 -> NvidiaCounterStyle(size, accent, m, v, mono, green, white, yellow)
             1 -> NvidiaDetailedStyle(size, accent, m, v, mono, green, cyan, yellow, white)
@@ -739,8 +897,8 @@ private fun TelemetryStyle(size: Float, accent: Color, m: MetricsState, v: LiveV
 }
 
 @Composable
-fun MiniMonitorOverlay(size: Float, color: Color, m: MetricsState, v: LiveValues) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun MiniMonitorOverlay(size: Float, widthScale: Float, color: Color, m: MetricsState, v: LiveValues) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.widthIn(min = (90f * widthScale).dp)) {
         if (m.fps) Text("${v.fps.roundToInt()}", color = Color.White, fontSize = (size * 1.5f).sp, fontWeight = FontWeight.Black)
         Text("FPS", color = Color.Gray, fontSize = (size * 0.58f).sp)
         Row(horizontalArrangement = Arrangement.Center) {
@@ -796,5 +954,46 @@ private fun Sparkline(points: List<Float>, color: Color, modifier: Modifier) {
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
         drawPath(path, color, style = Stroke(width = 2.2f, cap = StrokeCap.Round))
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Composable
+fun MainOverlayContentPreview() {
+    com.zuan.kernelmanager.next.ui.theme.ZuanKernelManagerTheme {
+        MainOverlayContent(
+            styleMode = 1,
+            pcVariant = 0,
+            orientation = 0,
+            colorHex = "#00FF00",
+            fontSize = 14f,
+            bgAlpha = 0.55f,
+            widthScale = 0.3f,
+            cornerRadius = 10f,
+            bgMode = 0,
+            showBorder = true,
+            showShadow = false,
+            sampleIntervalMs = 1000L,
+            metrics = MetricsState(
+                fps = true,
+                frameTime = true,
+                onePercent = true,
+                zeroOnePercent = false,
+                cpu = true,
+                cpuFreq = false,
+                gpuLoad = true,
+                gpuFreq = false,
+                watt = true,
+                temp = true,
+                ram = true,
+                ramPercent = false,
+                battery = false,
+                refresh = true,
+                render = false,
+                jank = false,
+                recordControl = true,
+                sparkline = true
+            )
+        )
     }
 }
